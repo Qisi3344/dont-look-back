@@ -6,3 +6,8 @@ export const STREAMER_FEET_Z = 2.22; // feet point toward the direction of trave
 export const STREAMER_RIGHT_SHOULDER_X = 0.52; // physically right for a character facing -Z
 export const STREAMER_RIGHT_ELBOW_X = 1.02;
 export const STREAMER_RIGHT_HAND_Z = -1.27;
+
+// Supine face is skyward (+Y) with slight tilt toward trailing camera (-Z).
+export const STREAMER_HEAD_PITCH=-0.24;
+export const STREAMER_GAZE_BACK_EXTRA=0.10;
+export const STREAMER_FACE_Y=0.316;
