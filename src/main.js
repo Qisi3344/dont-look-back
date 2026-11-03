@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import './style.css';
+import './menu-pages.css';
 import { MAPS,STREAMER_SKINS,CYCLIST_SKINS,findMap,findSkin,classifySwipe,shiftLaneIndex,LANE_OFFSETS,approachLaneOffset } from './game-content.js';
 import { renderShell,createInterface } from './interface.js';
 import { INITIAL_GAP, CATCH_DISTANCE, WARNING_DISTANCE, CRITICAL_DISTANCE, IMPACT, playerCruiseSpeed, advanceCyclist, LAUNCH_SPRINT_SPEED, LAUNCH_CYCLIST_SPEED, BOOST_SPEED, BRAKE_SPEED, ROAD_EDGE_SPEED } from './chase.js';
