@@ -1,0 +1,8 @@
+/** Spatial conventions: world movement is +Z. */
+export const BIKE_MODEL_FRONT_Z = -1; // bicycle was originally modeled pointing toward -Z
+export const BIKE_HEADING_CORRECTION = Math.PI; // rotate geometry into world +Z
+export const STREAMER_HEAD_Z = -0.89; // head lies toward the trailing camera
+export const STREAMER_FEET_Z = 2.22; // feet point toward the direction of travel
+export const STREAMER_RIGHT_SHOULDER_X = 0.52; // physically right for a character facing -Z
+export const STREAMER_RIGHT_ELBOW_X = 1.02;
+export const STREAMER_RIGHT_HAND_Z = -1.27;
