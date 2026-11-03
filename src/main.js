@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import './style.css';
-import { MAPS,STREAMER_SKINS,CYCLIST_SKINS,findMap,findSkin,steerFromScreen,classifySwipe,shiftLaneIndex } from './game-content.js';
+import { MAPS,STREAMER_SKINS,CYCLIST_SKINS,findMap,findSkin,classifySwipe,shiftLaneIndex,LANE_OFFSETS,approachLaneOffset } from './game-content.js';
 import { renderShell,createInterface } from './interface.js';
 import { INITIAL_GAP, CATCH_DISTANCE, WARNING_DISTANCE, CRITICAL_DISTANCE, IMPACT, playerCruiseSpeed, advanceCyclist, LAUNCH_SPRINT_SPEED, LAUNCH_CYCLIST_SPEED, BOOST_SPEED, BRAKE_SPEED, ROAD_EDGE_SPEED } from './chase.js';
 import { BIKE_HEADING_CORRECTION, STREAMER_HEAD_Z, STREAMER_FEET_Z, STREAMER_HEAD_PITCH, STREAMER_FACE_Y, STREAMER_GAZE_BACK_EXTRA, STREAMER_BOARD_YAW, STREAMER_BOARD_CENTER_OFFSET_Z, STREAMER_REST_ARM_SHOULDER_X, STREAMER_REST_ARM_ELBOW_X, STREAMER_REST_ARM_HAND_X } from './pose.js';
@@ -173,11 +173,17 @@ function applyMap(id){
   clearChunkVisuals();
 }
 const obstacles=[];function createObstacle(z,xoffset,type){const g=centerGroup(z);g.position.x+=xoffset;let radius=1.25;if(type==='cone'){const m=new THREE.Mesh(new THREE.ConeGeometry(.56,1.22,4),mat(0xe56e36));m.position.y=.62;m.rotation.y=Math.PI/4;g.add(m);radius=.68}else if(type==='gravel'){for(let i=0;i<8;i++)box(g,.25+Math.random()*.35,.15,.2+Math.random()*.4,mat(0xbbb4a3),Math.random()*1.7-.85,.11,Math.random()*1.7-.85);radius=1.15}else if(type==='bin'){box(g,1.4,1.7,1.4,mat(0x3f5b59),0,.85,0);box(g,1.6,.18,1.55,mat(0x233a3a),0,1.8,0);radius=1.05}else{box(g,3,1.1,.9,mat(0xd1a466),0,.55,0);radius=1.7}obstacles.push({g,z,xoffset,type,radius,hit:false})}const rng=mulberry32(424242);for(let z=95;z<TOTAL-65;z+=18+rng()*20){const type=['cone','gravel','bin','barrier'][Math.floor(rng()*4)];createObstacle(z,[-3.4,-1.7,0,1.7,3.4][Math.floor(rng()*5)],type)}
-const keys=new Set();addEventListener('keydown',e=>{if(['ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();keys.add(e.code)});addEventListener('keyup',e=>keys.delete(e.code));addEventListener('blur',()=>keys.clear());
+const keys=new Set();addEventListener('keydown',e=>{
+  if(['ArrowLeft','ArrowRight','KeyA','KeyD','Space'].includes(e.code))e.preventDefault();
+  if(keys.has(e.code))return; // one keypress = one lane; avoid operating-system auto-repeat
+  keys.add(e.code);
+  if(e.code==='KeyA'||e.code==='ArrowLeft')onSwipe('left');
+  else if(e.code==='KeyD'||e.code==='ArrowRight')onSwipe('right');
+});addEventListener('keyup',e=>keys.delete(e.code));addEventListener('blur',()=>keys.clear());
 let state='menu',distance=INITIAL_GAP,z=0,offset=0,v=11,enemyZ=0,enemyV=0,enemyOffset=-2.5,stun=0,recovery=0,
     seconds=0,chatTimer=0,noticeTimer=0,nearAlert=false,last=performance.now(),introTimer=0,introPhase=-1,
-    laneIndex=2,swipeBrakeUntil=0,swipeBoostUntil=0,boostCooldownUntil=0;
-const LANES=[-3.4,-1.7,0,1.7,3.4];
+    laneIndex=1,swipeBrakeUntil=0,swipeBoostUntil=0,boostCooldownUntil=0;
+const LANES=LANE_OFFSETS;
 const comments=['后面的自行车怎么还在追啊？？','主播你怎么躺着开车哈哈哈哈','别看弹幕啦看路啊！！','救命他骑得比我电驴还快','前面有垃圾桶！！','谁给主播规划的逃生路线','小胖龙：他真的不回头啊','好家伙自行车上坡更快了','主播：这是沉浸式户外直播'];
 let chatIndex=0;const gameUI=createInterface({onStart:beginOpening,onPreviewMap:applyMap,onSkipIntro:launchEscape,onReplay:()=>beginOpening(gameUI.config),onHome:()=>{state='menu';z=0;offset=0;gameUI.showHome()}});
 function addChat(text){const parent=document.querySelector('#chat'),el=document.createElement('p');
@@ -188,7 +194,7 @@ function addChat(text){const parent=document.querySelector('#chat'),el=document.
 function notice(text){const m=document.querySelector('#message');m.textContent=text;m.style.opacity=1;noticeTimer=1.6}
 function resetRun(){
   state='intro';distance=0;z=0;offset=1.6;v=1.5;enemyZ=0;enemyV=1.5;enemyOffset=-2.4;
-  stun=0;recovery=0;seconds=0;chatTimer=0;nearAlert=false;introTimer=0;introPhase=-1;laneIndex=2;
+  stun=0;recovery=0;seconds=0;chatTimer=0;nearAlert=false;introTimer=0;introPhase=-1;laneIndex=1;
   swipeBrakeUntil=swipeBoostUntil=boostCooldownUntil=0;noticeTimer=0;
   document.querySelector('#chat').replaceChildren();document.querySelector('#message').style.opacity=0;
   for(const o of obstacles)o.hit=false;
@@ -235,14 +241,21 @@ function bindSwipeSurface(canvas){
   let gesture=null;
   canvas.addEventListener('pointerdown',event=>{
     if(event.pointerType==='mouse'||(state!=='play'&&state!=='launch'))return;
-    gesture={id:event.pointerId,x:event.clientX,y:event.clientY};
+    gesture={id:event.pointerId,x:event.clientX,y:event.clientY,consumed:false};
     canvas.setPointerCapture(event.pointerId);event.preventDefault();
+  },{passive:false});
+  function recognizeSwipe(event){
+    if(!gesture||gesture.id!==event.pointerId||gesture.consumed)return;
+    const action=classifySwipe(event.clientX-gesture.x,event.clientY-gesture.y);
+    if(action){gesture.consumed=true;onSwipe(action);} // one drag cannot trigger two lane shifts
+  }
+  canvas.addEventListener('pointermove',event=>{
+    if(!gesture||gesture.id!==event.pointerId)return;
+    recognizeSwipe(event);event.preventDefault(); // move before the finger is released
   },{passive:false});
   canvas.addEventListener('pointerup',event=>{
     if(!gesture||gesture.id!==event.pointerId)return;
-    const action=classifySwipe(event.clientX-gesture.x,event.clientY-gesture.y);
-    if(action)onSwipe(action);
-    gesture=null;event.preventDefault();
+    recognizeSwipe(event);gesture=null;event.preventDefault();
   },{passive:false});
   canvas.addEventListener('pointercancel',()=>gesture=null);
 }
@@ -253,18 +266,17 @@ function step(dt){
   if(state!=='play'&&state!=='launch')return;
   seconds+=dt;chatTimer+=dt;
   if(chatTimer>4){addChat(comments[Math.floor(rng()*comments.length)]);chatTimer=0}
-  const steer=steerFromScreen(keys.has('KeyA')||keys.has('ArrowLeft'),keys.has('KeyD')||keys.has('ArrowRight'));
+  const steer=Math.max(-1,Math.min(1,(LANES[laneIndex]-offset)/.75));
   if(state==='launch'){
     // Stage the opening with two real moving bodies, not an instant 46m teleport.
     v=THREE.MathUtils.damp(v,LAUNCH_SPRINT_SPEED,1.85,dt);
     enemyV=THREE.MathUtils.damp(enemyV,LAUNCH_CYCLIST_SPEED,1.10,dt);
     z+=v*dt;enemyZ+=enemyV*dt;
-    offset=THREE.MathUtils.damp(offset,0,3.4,dt);
+    offset=approachLaneOffset(offset,LANES[laneIndex],dt);
     enemyOffset=THREE.MathUtils.damp(enemyOffset,0,1.2,dt);
     if(z-enemyZ>=INITIAL_GAP){state='play';enemyV=playerCruiseSpeed(z)-.4;notice('🚨 追逐开始！');}
   }else{
-    if(steer!==0){offset=THREE.MathUtils.clamp(offset+steer*dt*(3.5+v*.15),-5,5);laneIndex=LANES.reduce((best,x,i)=>Math.abs(x-offset)<Math.abs(LANES[best]-offset)?i:best,0)}
-    else offset=THREE.MathUtils.damp(offset,LANES[laneIndex],10,dt);
+    offset=approachLaneOffset(offset,LANES[laneIndex],dt);
     let target=playerCruiseSpeed(z);
     if(keys.has('Space')||seconds<swipeBrakeUntil)target=BRAKE_SPEED;
     if(seconds<swipeBoostUntil)target=Math.max(target,BOOST_SPEED);

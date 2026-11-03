@@ -27,7 +27,16 @@ export function classifySwipe(dx,dy,threshold=30){
   return dy>0?'brake':'boost';
 }
 // Our lane array is sorted by world X. Screen-left means increasing world X.
-export function shiftLaneIndex(index,gesture,laneCount=5){
+// Endless runner lanes: one swipe always advances one full lane, whatever the drag length.
+// Three lane centers fit the current 11m-wide road and its obstacle collision radii.
+export const LANE_OFFSETS=Object.freeze([-3.4,0,3.4]);
+export const LANE_SHIFT_LAMBDA=22; // around 0.14 s to reach 95% of a lane change
+export function approachLaneOffset(current,target,dt){
+  if(dt<=0)return current;
+  const next=current+(target-current)*(1-Math.exp(-LANE_SHIFT_LAMBDA*dt));
+  return Math.abs(next-target)<.025?target:next;
+}
+export function shiftLaneIndex(index,gesture,laneCount=LANE_OFFSETS.length){
   const delta=gesture==='left'?1:gesture==='right'?-1:0;
   return Math.max(0,Math.min(laneCount-1,index+delta));
 }

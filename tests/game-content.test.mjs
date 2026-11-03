@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {MAPS,STREAMER_SKINS,CYCLIST_SKINS,findMap,findSkin,steerFromScreen,classifySwipe,shiftLaneIndex} from '../src/game-content.js';
+import {MAPS,STREAMER_SKINS,CYCLIST_SKINS,findMap,findSkin,steerFromScreen,classifySwipe,shiftLaneIndex,LANE_OFFSETS,approachLaneOffset} from '../src/game-content.js';
 
 test('three distinct playable map palettes are selectable',()=>{
   assert.equal(MAPS.length,3);
@@ -28,10 +28,32 @@ test('touch gestures classify horizontal drags, downward brake and upward boost'
   assert.equal(classifySwipe(5,9),null);
 });
 test('swiping visually left increments world-X lane and respects map borders',()=>{
-  assert.equal(shiftLaneIndex(2,'left'),3);
-  assert.equal(shiftLaneIndex(2,'right'),1);
-  assert.equal(shiftLaneIndex(4,'left'),4);
+  assert.deepEqual([...LANE_OFFSETS],[-3.4,0,3.4]);
+  assert.equal(shiftLaneIndex(1,'left'),2);
+  assert.equal(shiftLaneIndex(1,'right'),0);
+  assert.equal(shiftLaneIndex(2,'left'),2);
   assert.equal(shiftLaneIndex(0,'right'),0);
+  assert.equal(LANE_OFFSETS[2]-LANE_OFFSETS[1],3.4);
+});
+test('two quick swipes can cross two lanes, but one long drag only makes one step',()=>{
+  assert.equal(shiftLaneIndex(shiftLaneIndex(0,'left'),'left'),2);
+  for(const dx of [-35,-130,-400])assert.equal(shiftLaneIndex(1,classifySwipe(dx,2)),2);
+});
+test('a full lane change is quick and smooth',()=>{
+  let x=0;
+  for(let i=0;i<12;i++)x=approachLaneOffset(x,3.4,1/60);
+  assert(x>3.2&&x<=3.4);
+  assert.equal(approachLaneOffset(x,3.4,.5),3.4);
+});
+test('lane movement is framerate-independent and reverses mid-transition',()=>{
+  const results=[1/30,1/60,1/120].map(dt=>{
+    let x=0;
+    for(let t=0;t<.2-1e-8;t+=dt)x=approachLaneOffset(x,3.4,dt);
+    return x;
+  });
+  assert(Math.max(...results)-Math.min(...results)<.02);
+  const x=approachLaneOffset(0,3.4,1/60);
+  assert(approachLaneOffset(x,-3.4,1/60)<x);
 });
 
 test('streaming overlay has no virtual joystick or button IDs', async () => {

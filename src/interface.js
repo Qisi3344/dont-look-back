@@ -15,7 +15,7 @@ export function renderShell(){
     <div class="chat" id="chat" aria-label="直播评论"></div>
     <div id="message" aria-live="polite"></div>
     <div class="game-footer"><div class="velocity"><strong id="speed">38</strong><span>KM/H<small>BOARD SPEED</small></span></div><div class="progress"><span id="meters">0</span> / 1800 M<small>逃离路线进度</small></div></div>
-    <div id="gesture-guide">滑动左右变道 · 下滑刹车 · 上滑冲刺</div>
+    <div id="gesture-guide">左右滑一次换一道 · 下滑刹车 · 上滑冲刺</div>
   </div>
   <div class="story is-hidden" id="story" aria-live="polite"><div class="story-bar"><span class="story-tag">开播现场 · 00:00</span><div class="story-who" id="story-who">骑车男</div><p class="story-line" id="story-line">……</p><button class="story-skip" id="skip-story" type="button">跳过剧情 ↗</button></div></div>
   <div class="veil" id="menu"></div>`;
@@ -29,12 +29,12 @@ export function createInterface({onStart,onPreviewMap,onSkipIntro,onReplay,onHom
   const persist=()=>safeSave(config);
   function showHome(){
     menu.classList.remove('is-hidden');hud.classList.add('is-hidden');story.classList.add('is-hidden');
-    menu.innerHTML=`<div class="home-wrap"><header class="home-top"><div class="home-brand"><span class="brand-icon">◈</span><span>WILD <b>STREAM</b> <small>/ ORIGINAL RUN</small></span></div><div class="home-version">BUILD 0.4.2 <span>●</span> ONLINE</div></header>
+    menu.innerHTML=`<div class="home-wrap"><header class="home-top"><div class="home-brand"><span class="brand-icon">◈</span><span>WILD <b>STREAM</b> <small>/ ORIGINAL RUN</small></span></div><div class="home-version">BUILD 0.4.3 <span>●</span> ONLINE</div></header>
       <div class="home-body"><section class="hero"><div class="eyebrow"><span class="mini-red">●</span> INSPIRED BY A VERY STRANGE LIVESTREAM</div><h1>主播<br><span>别回头<span class="punct">!</span></span></h1><p class="hero-en">DON'T LOOK BACK <i>///</i> A RIDICULOUS CHASE</p><p class="hero-description">你躺着直播，他骑车追你。<br>别分心，别翻车，最重要的是——别被追上。</p>
       <div class="home-illustration" aria-hidden="true"><div class="speedlines"></div><div class="pixel-bike"><span class="bike-head"></span><span class="bike-shirt"></span><span class="bike-wheel one"></span><span class="bike-wheel two"></span></div><div class="pixel-board"><span class="pixel-head"></span><span class="pixel-body"></span><span class="pixel-phone"></span></div><div class="floating-comment">“他还在后面吗？！”</div></div>
       <div class="hero-actions"><button type="button" class="primary-start" id="home-start">开始逃命 <span>↗</span></button><span class="hero-note">极速逃亡 · 失败可以重来</span></div></section>
       <section class="customize"><div class="select-heading"><span>01 / SELECT ROUTE</span><strong>选择地图</strong></div><div class="map-list">${MAPS.map((map,i)=>`<button type="button" data-kind="map" data-id="${map.id}" class="map-card ${config.map===map.id?'chosen':''}" aria-pressed="${config.map===map.id}"><span class="map-art map-art-${map.id}"><i class="art-path"></i><i class="art-orb"></i></span><span class="map-info"><b>0${i+1} / ${map.name}</b><small>${map.type} · ${map.difficulty}</small></span><span class="map-check">${config.map===map.id?'●':'○'}</span></button>`).join('')}</div>
-      <div class="select-heading skin-heading"><span>02 / YOUR LOOK</span><strong>双方换装</strong></div><div class="skin-columns"><div class="skin-col"><div class="skin-col-head">🛹 主播 <small>ESCAPER</small></div>${optionCards(STREAMER_SKINS,config.streamer,'streamer')}</div><div class="skin-col"><div class="skin-col-head">🚲 骑车男 <small>CHASER</small></div>${optionCards(CYCLIST_SKINS,config.cyclist,'cyclist')}</div></div><div class="menu-help">PC：A / ← 向左，D / → 向右，空格刹车<br>手机：屏幕左右滑动变道 · 下滑刹车 · 上滑冲刺</div></section></div>
+      <div class="select-heading skin-heading"><span>02 / YOUR LOOK</span><strong>双方换装</strong></div><div class="skin-columns"><div class="skin-col"><div class="skin-col-head">🛹 主播 <small>ESCAPER</small></div>${optionCards(STREAMER_SKINS,config.streamer,'streamer')}</div><div class="skin-col"><div class="skin-col-head">🚲 骑车男 <small>CHASER</small></div>${optionCards(CYCLIST_SKINS,config.cyclist,'cyclist')}</div></div><div class="menu-help">PC：A / ← 向左，D / → 向右，空格刹车<br>手机：左右滑一次切换一条车道 · 下滑刹车 · 上滑冲刺</div></section></div>
       <footer class="home-bottom"><span>LIVE LONGBOARD ESCAPE · FREE PLAY</span><span>躺着，也要逃命。 © PROJECT DLB</span></footer></div>`;
     onPreviewMap(config.map);
     menu.querySelectorAll('[data-kind]').forEach(el=>el.addEventListener('click',()=>{
