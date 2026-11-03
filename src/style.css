@@ -21,3 +21,8 @@
 #speed-fx::before{left:-2%}#speed-fx::after{right:-2%;transform:skewY(-20deg)}
 @keyframes edge-rush{to{background-position-y:240px}}
 @media(prefers-reduced-motion:reduce){#speed-fx{display:none}}
+
+/* v0.6 — stream identity and click-to-clear crow; prompt never intercepts swipes. */
+.stream-platform{font:900 12px 'Barlow Condensed',sans-serif;letter-spacing:2px;background:#9146ff;color:#fff;padding:5px 9px;border-radius:6px;box-shadow:0 0 18px #9146ff55;text-shadow:none}
+.crow-hint{position:absolute;left:50%;top:17%;transform:translateX(-50%);padding:9px 18px;border:1px solid #c9a5ff99;background:#210d35c7;backdrop-filter:blur(8px);border-radius:999px;color:#fff;font-size:clamp(12px,2vw,17px);font-weight:850;white-space:nowrap;letter-spacing:.2px;text-shadow:0 2px 6px #000;pointer-events:none;box-shadow:0 9px 24px #13001a55;z-index:5}
+@media(max-width:700px){.crow-hint{top:20%;max-width:94vw;white-space:normal;text-align:center;font-size:12px;padding:8px 11px}.stream-platform{font-size:10px;letter-spacing:1px;padding:4px 6px}.broadcast-status{gap:6px}}

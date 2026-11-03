@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import './style.css';
 import './menu-pages.css';
+import {roadX,roadY,roadTangent,roadPitch} from './road-geometry.js';
+import {createRoadsideKit} from './roadside.js';
+import {CROW_MARKERS,shouldReleaseCrow,createCrowActor} from './crow-event.js';
 import { MAPS,STREAMER_SKINS,CYCLIST_SKINS,findMap,findSkin,classifySwipe,shiftLaneIndex,LANE_OFFSETS,approachLaneOffset } from './game-content.js';
 import { renderShell,createInterface } from './interface.js';
 import { INITIAL_GAP, CATCH_DISTANCE, WARNING_DISTANCE, CRITICAL_DISTANCE, IMPACT, playerCruiseSpeed, advanceCyclist, LAUNCH_SPRINT_SPEED, LAUNCH_CYCLIST_SPEED, BOOST_SPEED, BRAKE_SPEED, ROAD_EDGE_SPEED } from './chase.js';
@@ -10,40 +13,42 @@ const app=document.querySelector('#app');
 app.innerHTML=renderShell();
 const speedFx=document.querySelector('#speed-fx');
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x7e9aa0);scene.fog=new THREE.FogExp2(0x819994,.0105);
-const camera=new THREE.PerspectiveCamera(72,innerWidth/innerHeight,.1,650);const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,1.75));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.35;document.querySelector('#world').append(renderer.domElement);
+const camera=new THREE.PerspectiveCamera(72,innerWidth/innerHeight,.1,650);const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,1.75));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.35;document.querySelector('#world').append(renderer.domElement);scene.add(camera);
 const ambient=new THREE.HemisphereLight(0xd4e5ea,0x3d4c38,2.1);scene.add(ambient);const sun=new THREE.DirectionalLight(0xffdfb8,2.3);sun.position.set(-40,75,-20);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.left=-75;sun.shadow.camera.right=75;sun.shadow.camera.top=75;sun.shadow.camera.bottom=-75;scene.add(sun);
 let currentMap=MAPS[0];
 const mat=(color,roughness=1)=>new THREE.MeshStandardMaterial({color,roughness});const roadMat=mat(0x555d5c), shoulderMat=mat(0x918c78), dirtMat=mat(0x486348), lineMat=mat(0xe8dcb4), bark=mat(0x594b3b), leaves=[mat(0x47664e),mat(0x67846c),mat(0x385b50)];
 const geoBox=new THREE.BoxGeometry(1,1,1);const geoSphere=new THREE.IcosahedronGeometry(1,0);
 const reflectorMat=mat(0xd8e7d4),postMat=mat(0x566169),postStripeMat=mat(0xd2ff95);function box(parent,w,h,d,color,x=0,y=0,z=0){const mesh=new THREE.Mesh(geoBox,typeof color==='number'?mat(color):color);mesh.scale.set(w,h,d);mesh.position.set(x,y,z);mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);return mesh}function sphere(parent,r,color,x,y,z){const m=new THREE.Mesh(geoSphere,color);m.scale.setScalar(r);m.position.set(x,y,z);m.castShadow=true;parent.add(m);return m}
-function pathX(z){return Math.sin(z*.008)*7+Math.sin(z*.019)*2.2}function tangent(z){return (pathX(z+1)-pathX(z-1))*.5}function centerGroup(z){const g=new THREE.Group();g.position.set(pathX(z),0,z);g.rotation.y=Math.atan(tangent(z));scene.add(g);return g}
-const CHUNK=65,TOTAL=1800;const chunks=[];function makeChunk(i){const start=i*CHUNK,g=new THREE.Group();scene.add(g);const parts=Math.ceil(CHUNK/5);for(let j=0;j<parts;j++){const z=start+j*5+2.5,cx=pathX(z);box(g,200,.1,5,dirtMat,cx,-.25,z);const angle=Math.atan(tangent(z));const road=box(g,11,.18,5.12,roadMat,cx,-.105,z);road.rotation.y=angle;for(const side of [-1,1]){const sh=box(g,1.3,.12,5.1,shoulderMat,cx+side*6.1,-.105,z);sh.rotation.y=angle;}if(j%2===0){const line=box(g,.16,.015,3.15,lineMat,cx,.003,z);line.rotation.y=angle;}
+function pathX(z){return roadX(z)}function tangent(z){return roadTangent(z)}function terrain(z){return roadY(z,currentMap.id)}function centerGroup(z){const g=new THREE.Group();g.position.set(pathX(z),terrain(z),z);g.rotation.y=Math.atan(tangent(z));scene.add(g);return g}
+const roadside=createRoadsideKit(THREE,{box,mat,pathX,roadY:terrain});const crow=createCrowActor(THREE,camera);const crowHint=document.querySelector('#crow-hint');let nextCrowIndex=0;
+const CHUNK=65,TOTAL=1800;const chunks=[];function makeChunk(i){const start=i*CHUNK,g=new THREE.Group();scene.add(g);const parts=Math.ceil(CHUNK/5);for(let j=0;j<parts;j++){const z=start+j*5+2.5,cx=pathX(z),y=terrain(z),pitch=roadPitch(z,currentMap.id);box(g,200,.1,5,dirtMat,cx,y-.25,z);const angle=Math.atan(tangent(z));const road=box(g,11,.18,5.12,roadMat,cx,y-.105,z);road.rotation.y=angle;road.rotation.x=pitch;for(const side of [-1,1]){const sh=box(g,1.3,.12,5.1,shoulderMat,cx+side*6.1,y-.105,z);sh.rotation.y=angle;sh.rotation.x=pitch;}if(j%2===0){const line=box(g,.16,.015,3.15,lineMat,cx,y+.003,z);line.rotation.y=angle;line.rotation.x=pitch;}
       // Real roadside speed cues: fixed in world space, pass the camera rapidly.
       if(j%2===0)for(const side of [-1,1]){
-        const px=cx+side*7.5,post=box(g,.22,.78,.22,postMat,px,.35,z);
+        const px=cx+side*7.5,post=box(g,.22,.78,.22,postMat,px,y+.35,z);
         post.castShadow=false;
-        const reflect=box(g,.245,.21,.26,reflectorMat,px,.63,z);
+        const reflect=box(g,.245,.21,.26,reflectorMat,px,y+.63,z);
         reflect.castShadow=false;
-        if((i+j)%4===0){const stripe=box(g,.29,.075,.28,postStripeMat,px,.46,z);stripe.castShadow=false;}
-      }}const random=mulberry32(i*919+113);for(let j=0;j<22;j++){const z=start+random()*CHUNK,side=random()<.5?-1:1;const x=pathX(z)+side*(10+random()*48);if(random()<.22){box(g,2,2+random()*3,2,mat(0x6c7068),x,1,z);continue;}const h=6+random()*9;box(g,.85,h*.55,.85,bark,x,h*.275,z);for(let k=0;k<3;k++)sphere(g,2+random()*1.4,leaves[Math.floor(random()*3)],x+(random()-.5)*1.3,h*(.52+k*.13),z+(random()-.5)*1.2)}if(currentMap.id==='coast'){
+        if((i+j)%4===0){const stripe=box(g,.29,.075,.28,postStripeMat,px,y+.46,z);stripe.castShadow=false;}
+      }}const random=mulberry32(i*919+113);for(let j=0;j<22;j++){const z=start+random()*CHUNK,side=random()<.5?-1:1;const x=pathX(z)+side*(10+random()*48),baseY=terrain(z);if(random()<.22){box(g,2,2+random()*3,2,mat(0x6c7068),x,baseY+1,z);continue;}const h=6+random()*9;box(g,.85,h*.55,.85,bark,x,baseY+h*.275,z);for(let k=0;k<3;k++)sphere(g,2+random()*1.4,leaves[Math.floor(random()*3)],x+(random()-.5)*1.3,baseY+h*(.52+k*.13),z+(random()-.5)*1.2)}if(currentMap.id==='coast'){
     const rail=mat(0xdad5b8),trunk=mat(0x8b7b61),frond=mat(0x3e9379);
     for(let k=0;k<5;k++){
-      const z=start+k*14,x=pathX(z)+8.6;
-      box(g,.13,1.2,.15,rail,x,.65,z);box(g,.12,.1,14,rail,x,1.15,z+7);
-      if(k%2===0){const px=pathX(z)-13;box(g,.48,5,.48,trunk,px,2.5,z);
-        for(let v=0;v<4;v++){const leaf=box(g,4.3,.18,.7,frond,px,5.2,z);leaf.rotation.y=v*Math.PI/2;leaf.rotation.z=(v%2?-.13:.13)}
+      const z=start+k*14,x=pathX(z)+8.6,y=terrain(z);
+      box(g,.13,1.2,.15,rail,x,y+.65,z);box(g,.12,.1,14,rail,x,y+1.15,z+7);
+      if(k%2===0){const px=pathX(z)-13;box(g,.48,5,.48,trunk,px,y+2.5,z);
+        for(let v=0;v<4;v++){const leaf=box(g,4.3,.18,.7,frond,px,y+5.2,z);leaf.rotation.y=v*Math.PI/2;leaf.rotation.z=(v%2?-.13:.13)}
       }
     }
   }
   if(currentMap.id==='night'){
     const building=mat(0x252b43),lit=mat(0xdcb7ff),pole=mat(0x61637a);
     for(let k=0;k<5;k++){
-      const z=start+k*15,x=pathX(z)+8.4;
-      box(g,.17,5.3,.17,pole,x,2.65,z);box(g,1.4,.18,.55,lit,x-.55,5.35,z);
-      box(g,4.1,7+k%3*3,4.2,building,pathX(z)-19,4.0+k%3*1.5,z+7);
-      for(let y=3;y<9;y+=2)box(g,.9,.28,.08,lit,pathX(z)-16.95,y,z+7);
+      const z=start+k*15,x=pathX(z)+8.4,y=terrain(z);
+      box(g,.17,5.3,.17,pole,x,y+2.65,z);box(g,1.4,.18,.55,lit,x-.55,y+5.35,z);
+      box(g,4.1,7+k%3*3,4.2,building,pathX(z)-19,y+4.0+k%3*1.5,z+7);
+      for(let y=3;y<9;y+=2)box(g,.9,.28,.08,lit,pathX(z)-16.95,terrain(z)+y,z+7);
     }
   }
+  roadside.populate(g,i,random,currentMap.id);
   return {g,i}}
 function mulberry32(a){return function(){let t=a+=0x6D2B79F5;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296}}
 // World-forward is +Z. The streamer remains FACE UP (+Y), but its model is turned 180 degrees on the board, independently of travel direction.
@@ -172,8 +177,42 @@ function applyMap(id){
   sun.intensity=currentMap.id==='night'?.95:2.3;
   ambient.intensity=currentMap.id==='night'?1.2:2.1;
   clearChunkVisuals();
+  // Existing obstacles are persistent: shift them onto the newly selected terrain, too.
+  for(const obstacle of obstacles)obstacle.g.position.y=terrain(obstacle.z);
 }
-const obstacles=[];function createObstacle(z,xoffset,type){const g=centerGroup(z);g.position.x+=xoffset;let radius=1.25;if(type==='cone'){const m=new THREE.Mesh(new THREE.ConeGeometry(.56,1.22,4),mat(0xe56e36));m.position.y=.62;m.rotation.y=Math.PI/4;g.add(m);radius=.68}else if(type==='gravel'){for(let i=0;i<8;i++)box(g,.25+Math.random()*.35,.15,.2+Math.random()*.4,mat(0xbbb4a3),Math.random()*1.7-.85,.11,Math.random()*1.7-.85);radius=1.15}else if(type==='bin'){box(g,1.4,1.7,1.4,mat(0x3f5b59),0,.85,0);box(g,1.6,.18,1.55,mat(0x233a3a),0,1.8,0);radius=1.05}else{box(g,3,1.1,.9,mat(0xd1a466),0,.55,0);radius=1.7}obstacles.push({g,z,xoffset,type,radius,hit:false})}const rng=mulberry32(424242);for(let z=95;z<TOTAL-65;z+=18+rng()*20){const type=['cone','gravel','bin','barrier'][Math.floor(rng()*4)];createObstacle(z,[-3.4,-1.7,0,1.7,3.4][Math.floor(rng()*5)],type)}
+const obstacles=[];
+function createObstacle(z,xoffset,type){
+  const g=centerGroup(z);g.position.x+=xoffset;
+  let radius=1.2;
+  if(type==='cone'){
+    const m=new THREE.Mesh(new THREE.ConeGeometry(.56,1.22,4),mat(0xe56e36));m.position.y=.62;m.rotation.y=Math.PI/4;g.add(m);radius=.72;
+  }else if(type==='gravel'){
+    for(let i=0;i<8;i++)box(g,.25+Math.random()*.35,.15,.2+Math.random()*.4,mat(0xbbb4a3),Math.random()*1.7-.85,.11,Math.random()*1.7-.85);radius=1.1;
+  }else if(type==='banana'){
+    const yellow=mat(0xffd02f),tip=mat(0x6f6238);
+    for(let i=0;i<4;i++){const b=box(g,.23,.12,.40,yellow,(i-1.5)*.20,.10,Math.sin(i*.8)*.13);b.rotation.y=(i-1.5)*.26;}
+    box(g,.10,.10,.13,tip,.49,.10,.10);radius=.72;
+  }else if(type==='cup'){
+    const cup=new THREE.Mesh(new THREE.CylinderGeometry(.34,.25,.73,7),mat(0xd7a9e5));cup.position.y=.36;cup.rotation.z=.18;g.add(cup);
+    box(g,.52,.06,.52,mat(0xf8eee7),0,.76,0);box(g,.07,.38,.07,mat(0xf1f1e8),.12,.94,0);radius=.68;
+  }else if(type==='bag'){
+    box(g,.90,.70,.55,mat(0xcda97b),0,.36,0);
+    for(const x of [-.25,.25])box(g,.12,.25,.12,mat(0xb18b63),x,.80,0);radius=.84;
+  }else if(type==='tripod'){
+    const metal=mat(0x3f4951),screen=mat(0x8bd8ed);
+    box(g,.52,.80,.17,metal,0,1.15,0);box(g,.43,.55,.04,screen,0,1.18,-.11);box(g,.08,.95,.08,metal,0,.47,0);
+    for(const x of [-.45,.45]){const leg=box(g,.07,.85,.08,metal,x*.5,.33,0);leg.rotation.z=x<0?-.5:.5;}radius=1.0;
+  }else if(type==='bin'){
+    box(g,1.4,1.7,1.4,mat(0x3f5b59),0,.85,0);box(g,1.6,.18,1.55,mat(0x233a3a),0,1.8,0);radius=1.05;
+  }else{box(g,3,1.1,.9,mat(0xd1a466),0,.55,0);radius=1.7;}
+  obstacles.push({g,z,xoffset,type,radius,hit:false});
+}
+const rng=mulberry32(424242);
+for(let obstacleZ=95;obstacleZ<TOTAL-65;obstacleZ+=19+rng()*17){
+  const types=['cone','gravel','banana','cup','bag','tripod','bin','barrier'];
+  const type=types[Math.floor(rng()*types.length)];
+  createObstacle(obstacleZ,[-3.4,0,3.4][Math.floor(rng()*3)],type);
+}
 const keys=new Set();addEventListener('keydown',e=>{
   if(['ArrowLeft','ArrowRight','KeyA','KeyD','Space'].includes(e.code))e.preventDefault();
   if(keys.has(e.code))return; // one keypress = one lane; avoid operating-system auto-repeat
@@ -183,10 +222,10 @@ const keys=new Set();addEventListener('keydown',e=>{
 });addEventListener('keyup',e=>keys.delete(e.code));addEventListener('blur',()=>keys.clear());
 let state='menu',distance=INITIAL_GAP,z=0,offset=0,v=11,enemyZ=0,enemyV=0,enemyOffset=-2.5,stun=0,recovery=0,
     seconds=0,chatTimer=0,noticeTimer=0,nearAlert=false,last=performance.now(),introTimer=0,introPhase=-1,
-    laneIndex=1,swipeBrakeUntil=0,swipeBoostUntil=0,boostCooldownUntil=0;
+    laneIndex=1,swipeBrakeUntil=0,swipeBoostUntil=0,boostCooldownUntil=0,streamMilestone=0,bananaSlip=0;
 const LANES=LANE_OFFSETS;
-const comments=['后面的自行车怎么还在追啊？？','主播你怎么躺着开车哈哈哈哈','别看弹幕啦看路啊！！','救命他骑得比我电驴还快','前面有垃圾桶！！','谁给主播规划的逃生路线','小胖龙：他真的不回头啊','好家伙自行车上坡更快了','主播：这是沉浸式户外直播'];
-let chatIndex=0;const gameUI=createInterface({onStart:beginOpening,onPreviewMap:applyMap,onSkipIntro:launchEscape,onReplay:()=>beginOpening(gameUI.config),onHome:()=>{state='menu';z=0;offset=0;gameUI.showHome()}});
+const comments=['乌鸦也有自己的直播间了？！','路边的礼物箱比主播都大','这条路居然还是上下坡','后面的自行车怎么还在追啊？？','主播你怎么躺着开车哈哈哈哈','别看弹幕啦看路啊！！','救命他骑得比我电驴还快','前面有垃圾桶！！','谁给主播规划的逃生路线','小胖龙：他真的不回头啊','好家伙自行车上坡更快了','主播：这是沉浸式户外直播'];
+let chatIndex=0;const gameUI=createInterface({onStart:beginOpening,onPreviewMap:applyMap,onSkipIntro:launchEscape,onReplay:()=>beginOpening(gameUI.config),onHome:()=>{state='menu';z=0;offset=0;crow.clear();crowHint.classList.add('is-hidden');gameUI.showHome()}});
 function addChat(text){const parent=document.querySelector('#chat'),el=document.createElement('p');
   const people=['小胖龙','土豆骑士','路人甲','路人乙','绮思的奶茶'];
   const label=document.createElement('b');label.textContent=people[chatIndex++%people.length]+'：';
@@ -196,11 +235,11 @@ function notice(text){const m=document.querySelector('#message');m.textContent=t
 function resetRun(){
   state='intro';distance=0;z=0;offset=1.6;v=1.5;enemyZ=0;enemyV=1.5;enemyOffset=-2.4;
   stun=0;recovery=0;seconds=0;chatTimer=0;nearAlert=false;introTimer=0;introPhase=-1;laneIndex=1;
-  swipeBrakeUntil=swipeBoostUntil=boostCooldownUntil=0;noticeTimer=0;
+  swipeBrakeUntil=swipeBoostUntil=boostCooldownUntil=0;noticeTimer=0;streamMilestone=0;bananaSlip=0;nextCrowIndex=0;crow.clear();crowHint.classList.add('is-hidden');
   document.querySelector('#chat').replaceChildren();document.querySelector('#message').style.opacity=0;
   for(const o of obstacles)o.hit=false;
-  player.position.set(pathX(0)+offset,.08,0);
-  chaser.position.set(pathX(0)+enemyOffset,0,0);chaser.rotation.y=BIKE_HEADING_CORRECTION;
+  player.position.set(pathX(0)+offset,terrain(0)+.08,0);
+  chaser.position.set(pathX(0)+enemyOffset,terrain(0),0);chaser.rotation.y=BIKE_HEADING_CORRECTION;
   gameUI.showIntro();
 }
 function beginOpening(config){
@@ -224,7 +263,7 @@ function launchEscape(){
   gameUI.launch();notice('主播：溜了溜了！！！');addChat('主播？？你怎么突然加速了哈哈哈哈');
 }
 function finish(won){
-  state='end';gameUI.showEnd(won,z,seconds);
+  state='end';crow.clear();crowHint.classList.add('is-hidden');gameUI.showEnd(won,z,seconds);
 }
 function onSwipe(gesture){
   if(state!=='play'&&state!=='launch')return;
@@ -241,6 +280,10 @@ function onSwipe(gesture){
 function bindSwipeSurface(canvas){
   let gesture=null;
   canvas.addEventListener('pointerdown',event=>{
+    if(state==='play'&&crow.active){
+      const hit=crow.tap(event.clientX,event.clientY,canvas);
+      if(hit){event.preventDefault();if(hit.cleared){crowHint.classList.add('is-hidden');notice('🐦 乌鸦被赶跑了！');addChat('乌鸦：不打扰了，您继续逃！');}else{crowHint.textContent='🐦 乌鸦挡镜头！还差 '+hit.remaining+' 次';}return;}
+    }
     if(event.pointerType==='mouse'||(state!=='play'&&state!=='launch'))return;
     gesture={id:event.pointerId,x:event.clientX,y:event.clientY,consumed:false};
     canvas.setPointerCapture(event.pointerId);event.preventDefault();
@@ -267,6 +310,7 @@ function step(dt){
   if(state!=='play'&&state!=='launch')return;
   seconds+=dt;chatTimer+=dt;
   if(chatTimer>4){addChat(comments[Math.floor(rng()*comments.length)]);chatTimer=0}
+  if(state==='play'&&Math.floor(z/230)>streamMilestone){streamMilestone=Math.floor(z/230);addChat('💜 Twitch HYPE TRAIN：礼物列车开过来了！')}
   const steer=Math.max(-1,Math.min(1,(LANES[laneIndex]-offset)/.75));
   if(state==='launch'){
     // Stage the opening with two real moving bodies, not an instant 46m teleport.
@@ -288,8 +332,8 @@ function step(dt){
     z+=v*dt;
     for(const o of obstacles){
       if(!o.hit&&Math.abs(z-o.z)<1.35&&Math.abs(offset-o.xoffset)<o.radius+.4){
-        o.hit=true;const impact=IMPACT[o.type];v*=impact.multiplier;stun=Math.max(stun,impact.stun);recovery=Math.max(recovery,impact.recovery);
-        if(impact.stun===0){notice('⚠ 颠簸减速！');addChat('好险差点翻车！！')}
+        o.hit=true;const impact=IMPACT[o.type];v*=impact.multiplier;if(o.type==='banana')bananaSlip=1.0;stun=Math.max(stun,impact.stun);recovery=Math.max(recovery,impact.recovery);
+        if(impact.stun===0){notice(o.type==='banana'?'🍌 香蕉皮！滑板打滑！':o.type==='cup'?'🥤 奶茶洒啦！':'⚠ 颠簸减速！');addChat(o.type==='banana'?'谁在逃亡路上丢香蕉啊哈哈哈':'好险差点翻车！！')}
         else{notice('💥 翻板了！！');addChat('哈哈哈哈主播飞出去了！')}
       }
     }
@@ -297,13 +341,14 @@ function step(dt){
     enemyZ=pursuit.enemyZ;enemyV=pursuit.enemySpeed;
     enemyOffset=THREE.MathUtils.damp(enemyOffset,Math.sin(seconds*.6)*.9,1,dt);
   }
-  player.position.set(pathX(z)+offset,.08,z);
+  player.position.set(pathX(z)+offset,terrain(z)+.08,z);
   player.rotation.y=Math.atan(tangent(z));
-  player.rotation.z=steer*-.07+(stun>0?Math.sin(seconds*24)*.14:0);
+  bananaSlip=Math.max(0,bananaSlip-dt);
+  player.rotation.z=steer*-.07+(stun>0?Math.sin(seconds*24)*.14:0)+Math.sin(seconds*25)*bananaSlip*.19;
   rider.root.rotation.z=stun>0?Math.sin(seconds*15)*.14:0;
   rider.headTilt.rotation.x=STREAMER_HEAD_PITCH+Math.sin(seconds*2.4)*.02+(distance<WARNING_DISTANCE?STREAMER_GAZE_BACK_EXTRA:0);
   streamerPhone.phone.rotation.z=-.12+Math.sin(seconds*4.2)*.018;
-  chaser.position.set(pathX(enemyZ)+enemyOffset,0,enemyZ);
+  chaser.position.set(pathX(enemyZ)+enemyOffset,terrain(enemyZ),enemyZ);
   chaser.rotation.y=Math.atan(tangent(enemyZ))+BIKE_HEADING_CORRECTION;
   bike.rotation.z=Math.sin(seconds*17)*.024;
   distance=Math.max(0,z-enemyZ);
@@ -312,6 +357,10 @@ function step(dt){
     if(distance>WARNING_DISTANCE+8)nearAlert=false;
     if(distance<CATCH_DISTANCE)finish(false);else if(z>=TOTAL)finish(true);
   }
+  if(state==='play'&&shouldReleaseCrow(z,nextCrowIndex,crow.active)){
+    crow.start();nextCrowIndex++;crowHint.textContent='🐦 乌鸦挡镜头！点击赶走 · 还差 3 次';crowHint.classList.remove('is-hidden');addChat('啊啊啊镜头上飞来一只乌鸦！！');
+  }
+  if(crow.update(dt)){crowHint.classList.add('is-hidden');addChat('乌鸦终于自行离开直播间了！')}
   document.querySelector('#speed').textContent=Math.round(v*3.6);
   speedFx.style.setProperty('--rush',state==='launch'||state==='play'?Math.min(.30,Math.max(0,(v-15)/20)*.3).toFixed(3):'0');
   document.querySelector('#meters').textContent=Math.min(TOTAL,Math.floor(z));
@@ -326,13 +375,14 @@ function maintainChunks(){const at=Math.floor(z/CHUNK);for(let i=Math.max(0,at-2
   const isChasing=state==='play'||state==='launch';
   const speedBlend=isChasing?THREE.MathUtils.smoothstep(v,10,33):0;
   const danger=state==='play'&&distance<WARNING_DISTANCE;
-  const cameraBehind=state==='intro'?17:danger?17:9.6;
-  const cameraHeight=state==='intro'?7.8:danger?6.7:5.5;
+  const cameraBehind=state==='intro'?10.0:danger?7.1:5.6;
+  const cameraHeight=state==='intro'?5.7:danger?4.2:3.4;
   const vibration=isChasing?Math.max(0,speedBlend-.22)*.045:0;
-  targetPos.set(bx+Math.sin(now*.024)*vibration,cameraHeight+Math.cos(now*.018)*vibration,bz-cameraBehind);
+  targetPos.set(bx+Math.sin(now*.024)*vibration,terrain(bz)+cameraHeight+Math.cos(now*.018)*vibration,bz-cameraBehind);
   camera.position.lerp(targetPos,Math.min(1,dt*(isChasing?5.8:3)));
-  const fovTarget=isChasing?72+speedBlend*10:68;
+  const fovTarget=isChasing?73+speedBlend*7:68;
   const updatedFov=THREE.MathUtils.damp(camera.fov,fovTarget,3.5,dt);
   if(Math.abs(updatedFov-camera.fov)>.012){camera.fov=updatedFov;camera.updateProjectionMatrix();}
-  camera.lookAt(bx,1.12,bz+(state==='intro'?6:17));
+  camera.lookAt(bx,terrain(bz)+1.10,bz+(state==='intro'?6:11.5));
+  for(const item of chunks)roadside.animate(item.g,z,now*.001);
   renderer.render(scene,camera)}requestAnimationFrame(frame);addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});

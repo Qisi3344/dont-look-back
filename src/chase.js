@@ -44,4 +44,8 @@ export const IMPACT = Object.freeze({
   cone: Object.freeze({ multiplier: 0.64, stun: 0, recovery: 0 }),
   bin: Object.freeze({ multiplier: 0.42, stun: 0.7, recovery: 2.5 }),
   barrier: Object.freeze({ multiplier: 0.34, stun: 1.3, recovery: 3.7 }),
+  banana: Object.freeze({ multiplier: 0.72, stun: 0, recovery: 1.0 }),
+  cup: Object.freeze({ multiplier: 0.78, stun: 0, recovery: 0.5 }),
+  bag: Object.freeze({ multiplier: 0.61, stun: 0, recovery: 1.1 }),
+  tripod: Object.freeze({ multiplier: 0.43, stun: 0.8, recovery: 2.4 }),
 });

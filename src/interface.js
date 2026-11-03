@@ -6,9 +6,9 @@ const safeSave = value => { try { localStorage.setItem('dlb-prefs', JSON.stringi
 export function renderShell() {
   return `<div id="world"></div><div id="speed-fx" aria-hidden="true"></div>
   <div id="hud" class="is-hidden" aria-live="off">
-    <div class="broadcast"><div class="broadcast-status"><span class="live-dot"></span> LIVE <span class="live-count" id="viewers">8,439</span><span class="live-eye">● 1080P</span></div><div class="broadcast-sub">直播中 · <span id="map-label">迷雾林道</span></div></div>
+    <div class="broadcast"><div class="broadcast-status"><span class="stream-platform">TWITCH</span><span class="live-dot"></span> LIVE <span class="live-count" id="viewers">8,439</span><span class="live-eye">● 1080P</span></div><div class="broadcast-sub">直播中 · <span id="map-label">迷雾林道</span></div></div>
     <div class="minimap"><div class="minihead"><span>追踪雷达</span><span>GPS ●</span></div><canvas id="map" width="292" height="290" aria-label="追击者和玩家位置小地图"></canvas><div class="distance" id="gap">追击距离 46m</div></div>
-    <div class="chat" id="chat" aria-label="直播评论"></div><div id="message" aria-live="polite"></div>
+    <div class="chat" id="chat" aria-label="直播评论"></div><div id="crow-hint" class="crow-hint is-hidden" aria-live="polite">🐦 乌鸦挡镜头！点击赶走 · 还差 3 次</div><div id="message" aria-live="polite"></div>
     <div class="game-footer"><div class="velocity"><strong id="speed">38</strong><span>KM/H<small>BOARD SPEED</small></span></div><div class="progress"><span id="meters">0</span> / 1800 M<small>逃离路线进度</small></div></div>
     <div id="gesture-guide">左右滑一次换一道 · 下滑刹车 · 上滑冲刺</div>
   </div>
@@ -67,7 +67,7 @@ export function createInterface({ onStart, onPreviewMap, onSkipIntro, onReplay, 
     const streamer = findSkin(STREAMER_SKINS, config.streamer);
     const cyclist = findSkin(CYCLIST_SKINS, config.cyclist);
     setMenuPage('home', `<div class="dlb-home-screen">
-      <header class="dlb-home-top">${brand()}<span class="dlb-version">V 0.5.0 <span>●</span> READY TO RUN</span></header>
+      <header class="dlb-home-top">${brand()}<span class="dlb-version">V 0.6.0 <span>●</span> READY TO RUN</span></header>
       <main class="dlb-home-main"><div class="dlb-home-copy"><div class="dlb-kicker"><i></i> A VERY STRANGE LIVESTREAM / AN EVEN STRANGER CHASE</div>
         <h1>主播<span>别回头<b>!</b></span></h1><p class="dlb-home-english">DON'T LOOK BACK <strong>///</strong> RUN FOR YOUR STREAM</p>
         <p class="dlb-home-description">一个躺在滑板上直播的人。<br>一个穿着荧光绿骑车追赶的人。<br>以及一条怎么都不够长的路。</p>
