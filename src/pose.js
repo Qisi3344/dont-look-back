@@ -7,9 +7,9 @@ export const STREAMER_RIGHT_SHOULDER_X = 0.52; // physically right for a charact
 export const STREAMER_RIGHT_ELBOW_X = 1.02;
 export const STREAMER_RIGHT_HAND_Z = -1.27;
 
-// Supine face is skyward (+Y) with slight tilt toward trailing camera (-Z).
-export const STREAMER_HEAD_PITCH=-0.24;
-export const STREAMER_GAZE_BACK_EXTRA=0.10;
+// Model yaw is PI: positive local X head pitch tilts the face toward world -Z (camera and pursuer).
+export const STREAMER_HEAD_PITCH=0.62;
+export const STREAMER_GAZE_BACK_EXTRA=0.16;
 export const STREAMER_FACE_Y=0.316;
 
 // User-requested 180° turn in the skateboard's horizontal plane.
@@ -17,3 +17,8 @@ export const STREAMER_FACE_Y=0.316;
 export const STREAMER_BOARD_YAW = Math.PI;
 // After the turn, shift the elongated model back to the center of the deck.
 export const STREAMER_BOARD_CENTER_OFFSET_Z = 0.65;
+
+// Mirrored bent arm now rests on the opposite side of the head.
+export const STREAMER_REST_ARM_SHOULDER_X=-0.52;
+export const STREAMER_REST_ARM_ELBOW_X=-1.02;
+export const STREAMER_REST_ARM_HAND_X=-0.39;
