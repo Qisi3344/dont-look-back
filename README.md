@@ -40,6 +40,10 @@ npm run dev
 
 禁止 Flash 式扁平舞台伪装为 3D、禁止静态模型充当玩法。游戏必须保持可交互的三维空间、基于世界位置的追逐和真实失败判定。
 
-## 建议仓库
+## 在线版本
 
-`Qisi3344/dont-look-back`。开源 MIT（创建仓库时可自行选择）。
+目标地址：`https://qisi3344.github.io/dont-look-back/`（需在 GitHub 仓库 Settings → Pages 中将 Source 改为 **GitHub Actions**，并等待部署成功）。
+
+## 开发状态
+
+这是早期玩法原型，尚未完成真实刚体翻车、敌人智能避障与全平台运行验证。
