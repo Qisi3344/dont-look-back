@@ -11,3 +11,9 @@ export const STREAMER_RIGHT_HAND_Z = -1.27;
 export const STREAMER_HEAD_PITCH=-0.24;
 export const STREAMER_GAZE_BACK_EXTRA=0.10;
 export const STREAMER_FACE_Y=0.316;
+
+// User-requested 180° turn in the skateboard's horizontal plane.
+// Only the streamer model turns; the board, phone, movement and cyclist do not.
+export const STREAMER_BOARD_YAW = Math.PI;
+// After the turn, shift the elongated model back to the center of the deck.
+export const STREAMER_BOARD_CENTER_OFFSET_Z = 0.65;
