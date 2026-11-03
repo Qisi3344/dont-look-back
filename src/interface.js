@@ -29,7 +29,7 @@ export function createInterface({onStart,onPreviewMap,onSkipIntro,onReplay,onHom
   const persist=()=>safeSave(config);
   function showHome(){
     menu.classList.remove('is-hidden');hud.classList.add('is-hidden');story.classList.add('is-hidden');
-    menu.innerHTML=`<div class="home-wrap"><header class="home-top"><div class="home-brand"><span class="brand-icon">◈</span><span>WILD <b>STREAM</b> <small>/ ORIGINAL RUN</small></span></div><div class="home-version">BUILD 0.4.1 <span>●</span> ONLINE</div></header>
+    menu.innerHTML=`<div class="home-wrap"><header class="home-top"><div class="home-brand"><span class="brand-icon">◈</span><span>WILD <b>STREAM</b> <small>/ ORIGINAL RUN</small></span></div><div class="home-version">BUILD 0.4.2 <span>●</span> ONLINE</div></header>
       <div class="home-body"><section class="hero"><div class="eyebrow"><span class="mini-red">●</span> INSPIRED BY A VERY STRANGE LIVESTREAM</div><h1>主播<br><span>别回头<span class="punct">!</span></span></h1><p class="hero-en">DON'T LOOK BACK <i>///</i> A RIDICULOUS CHASE</p><p class="hero-description">你躺着直播，他骑车追你。<br>别分心，别翻车，最重要的是——别被追上。</p>
       <div class="home-illustration" aria-hidden="true"><div class="speedlines"></div><div class="pixel-bike"><span class="bike-head"></span><span class="bike-shirt"></span><span class="bike-wheel one"></span><span class="bike-wheel two"></span></div><div class="pixel-board"><span class="pixel-head"></span><span class="pixel-body"></span><span class="pixel-phone"></span></div><div class="floating-comment">“他还在后面吗？！”</div></div>
       <div class="hero-actions"><button type="button" class="primary-start" id="home-start">开始逃命 <span>↗</span></button><span class="hero-note">极速逃亡 · 失败可以重来</span></div></section>
@@ -44,9 +44,9 @@ export function createInterface({onStart,onPreviewMap,onSkipIntro,onReplay,onHom
     }));
     menu.querySelector('#home-start').addEventListener('click',()=>{menu.classList.add('is-hidden');onStart({...config})});
   }
-  function showIntro(){story.classList.remove('is-hidden');hud.classList.add('is-hidden');document.querySelector('#skip-story').onclick=onSkipIntro}
+  function showIntro(){menu.classList.add('is-hidden');story.classList.remove('is-hidden');hud.classList.add('is-hidden');document.querySelector('#skip-story').onclick=onSkipIntro}
   function setStory(who,line){document.querySelector('#story-who').textContent=who;document.querySelector('#story-line').textContent=line}
-  function launch(){story.classList.add('is-hidden');hud.classList.remove('is-hidden');document.querySelector('#map-label').textContent=findMap(config.map).name;const hint=document.querySelector('#gesture-guide');hint.style.animation='none';void hint.offsetWidth;hint.style.animation=''}
+  function launch(){menu.classList.add('is-hidden');story.classList.add('is-hidden');hud.classList.remove('is-hidden');document.querySelector('#map-label').textContent=findMap(config.map).name;const hint=document.querySelector('#gesture-guide');hint.style.animation='none';void hint.offsetWidth;hint.style.animation=''}
   function showEnd(won,progress,time){
     hud.classList.add('is-hidden');story.classList.add('is-hidden');menu.classList.remove('is-hidden');
     menu.innerHTML=`<div class="result-card"><div class="result-eyebrow">${won?'● STREAM SAVED':'● STREAM DISCONNECTED'}</div><div class="result-icon">${won?'✦':'⚠'}</div><h2>${won?'逃出生天！':'你被追上了！'}</h2><p>${won?'评论区已经把这段逃生剪成名场面了。':'自行车终于赶上了。弹幕正在疯狂截图。'}</p><div class="result-stats"><div><strong>${Math.floor(progress)}</strong><span>滑行米数</span></div><div><strong>${Math.floor(time)}</strong><span>逃亡秒数</span></div><div><strong>${findMap(config.map).name}</strong><span>本局地图</span></div></div><div class="result-actions"><button class="primary-start" id="again">再逃一次 ↗</button><button class="secondary-action" id="go-home">返回首页</button></div></div>`;
