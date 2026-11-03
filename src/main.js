@@ -2,19 +2,29 @@ import * as THREE from 'three';
 import './style.css';
 import { MAPS,STREAMER_SKINS,CYCLIST_SKINS,findMap,findSkin,steerFromScreen,classifySwipe,shiftLaneIndex } from './game-content.js';
 import { renderShell,createInterface } from './interface.js';
-import { INITIAL_GAP, CATCH_DISTANCE, WARNING_DISTANCE, CRITICAL_DISTANCE, IMPACT, playerCruiseSpeed, advanceCyclist } from './chase.js';
+import { INITIAL_GAP, CATCH_DISTANCE, WARNING_DISTANCE, CRITICAL_DISTANCE, IMPACT, playerCruiseSpeed, advanceCyclist, LAUNCH_SPRINT_SPEED, LAUNCH_CYCLIST_SPEED, BOOST_SPEED, BRAKE_SPEED, ROAD_EDGE_SPEED } from './chase.js';
 import { BIKE_HEADING_CORRECTION, STREAMER_HEAD_Z, STREAMER_FEET_Z, STREAMER_HEAD_PITCH, STREAMER_FACE_Y, STREAMER_GAZE_BACK_EXTRA, STREAMER_BOARD_YAW, STREAMER_BOARD_CENTER_OFFSET_Z, STREAMER_REST_ARM_SHOULDER_X, STREAMER_REST_ARM_ELBOW_X, STREAMER_REST_ARM_HAND_X } from './pose.js';
 
 const app=document.querySelector('#app');
 app.innerHTML=renderShell();
+const speedFx=document.querySelector('#speed-fx');
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x7e9aa0);scene.fog=new THREE.FogExp2(0x819994,.0105);
-const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.1,650);const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,1.75));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.35;document.querySelector('#world').append(renderer.domElement);
+const camera=new THREE.PerspectiveCamera(72,innerWidth/innerHeight,.1,650);const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,1.75));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.35;document.querySelector('#world').append(renderer.domElement);
 const ambient=new THREE.HemisphereLight(0xd4e5ea,0x3d4c38,2.1);scene.add(ambient);const sun=new THREE.DirectionalLight(0xffdfb8,2.3);sun.position.set(-40,75,-20);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.left=-75;sun.shadow.camera.right=75;sun.shadow.camera.top=75;sun.shadow.camera.bottom=-75;scene.add(sun);
 let currentMap=MAPS[0];
 const mat=(color,roughness=1)=>new THREE.MeshStandardMaterial({color,roughness});const roadMat=mat(0x555d5c), shoulderMat=mat(0x918c78), dirtMat=mat(0x486348), lineMat=mat(0xe8dcb4), bark=mat(0x594b3b), leaves=[mat(0x47664e),mat(0x67846c),mat(0x385b50)];
-const geoBox=new THREE.BoxGeometry(1,1,1);const geoSphere=new THREE.IcosahedronGeometry(1,0);function box(parent,w,h,d,color,x=0,y=0,z=0){const mesh=new THREE.Mesh(geoBox,typeof color==='number'?mat(color):color);mesh.scale.set(w,h,d);mesh.position.set(x,y,z);mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);return mesh}function sphere(parent,r,color,x,y,z){const m=new THREE.Mesh(geoSphere,color);m.scale.setScalar(r);m.position.set(x,y,z);m.castShadow=true;parent.add(m);return m}
+const geoBox=new THREE.BoxGeometry(1,1,1);const geoSphere=new THREE.IcosahedronGeometry(1,0);
+const reflectorMat=mat(0xd8e7d4),postMat=mat(0x566169),postStripeMat=mat(0xd2ff95);function box(parent,w,h,d,color,x=0,y=0,z=0){const mesh=new THREE.Mesh(geoBox,typeof color==='number'?mat(color):color);mesh.scale.set(w,h,d);mesh.position.set(x,y,z);mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);return mesh}function sphere(parent,r,color,x,y,z){const m=new THREE.Mesh(geoSphere,color);m.scale.setScalar(r);m.position.set(x,y,z);m.castShadow=true;parent.add(m);return m}
 function pathX(z){return Math.sin(z*.008)*7+Math.sin(z*.019)*2.2}function tangent(z){return (pathX(z+1)-pathX(z-1))*.5}function centerGroup(z){const g=new THREE.Group();g.position.set(pathX(z),0,z);g.rotation.y=Math.atan(tangent(z));scene.add(g);return g}
-const CHUNK=65,TOTAL=1800;const chunks=[];function makeChunk(i){const start=i*CHUNK,g=new THREE.Group();scene.add(g);const parts=Math.ceil(CHUNK/5);for(let j=0;j<parts;j++){const z=start+j*5+2.5,cx=pathX(z);box(g,200,.1,5,dirtMat,cx,-.25,z);const angle=Math.atan(tangent(z));const road=box(g,11,.18,5.12,roadMat,cx,-.105,z);road.rotation.y=angle;for(const side of [-1,1]){const sh=box(g,1.3,.12,5.1,shoulderMat,cx+side*6.1,-.105,z);sh.rotation.y=angle;}if(j%3===0){const line=box(g,.15,.015,2.2,lineMat,cx,.003,z);line.rotation.y=angle;}}const random=mulberry32(i*919+113);for(let j=0;j<22;j++){const z=start+random()*CHUNK,side=random()<.5?-1:1;const x=pathX(z)+side*(10+random()*48);if(random()<.22){box(g,2,2+random()*3,2,mat(0x6c7068),x,1,z);continue;}const h=6+random()*9;box(g,.85,h*.55,.85,bark,x,h*.275,z);for(let k=0;k<3;k++)sphere(g,2+random()*1.4,leaves[Math.floor(random()*3)],x+(random()-.5)*1.3,h*(.52+k*.13),z+(random()-.5)*1.2)}if(currentMap.id==='coast'){
+const CHUNK=65,TOTAL=1800;const chunks=[];function makeChunk(i){const start=i*CHUNK,g=new THREE.Group();scene.add(g);const parts=Math.ceil(CHUNK/5);for(let j=0;j<parts;j++){const z=start+j*5+2.5,cx=pathX(z);box(g,200,.1,5,dirtMat,cx,-.25,z);const angle=Math.atan(tangent(z));const road=box(g,11,.18,5.12,roadMat,cx,-.105,z);road.rotation.y=angle;for(const side of [-1,1]){const sh=box(g,1.3,.12,5.1,shoulderMat,cx+side*6.1,-.105,z);sh.rotation.y=angle;}if(j%2===0){const line=box(g,.16,.015,3.15,lineMat,cx,.003,z);line.rotation.y=angle;}
+      // Real roadside speed cues: fixed in world space, pass the camera rapidly.
+      if(j%2===0)for(const side of [-1,1]){
+        const px=cx+side*7.5,post=box(g,.22,.78,.22,postMat,px,.35,z);
+        post.castShadow=false;
+        const reflect=box(g,.245,.21,.26,reflectorMat,px,.63,z);
+        reflect.castShadow=false;
+        if((i+j)%4===0){const stripe=box(g,.29,.075,.28,postStripeMat,px,.46,z);stripe.castShadow=false;}
+      }}const random=mulberry32(i*919+113);for(let j=0;j<22;j++){const z=start+random()*CHUNK,side=random()<.5?-1:1;const x=pathX(z)+side*(10+random()*48);if(random()<.22){box(g,2,2+random()*3,2,mat(0x6c7068),x,1,z);continue;}const h=6+random()*9;box(g,.85,h*.55,.85,bark,x,h*.275,z);for(let k=0;k<3;k++)sphere(g,2+random()*1.4,leaves[Math.floor(random()*3)],x+(random()-.5)*1.3,h*(.52+k*.13),z+(random()-.5)*1.2)}if(currentMap.id==='coast'){
     const rail=mat(0xdad5b8),trunk=mat(0x8b7b61),frond=mat(0x3e9379);
     for(let k=0;k<5;k++){
       const z=start+k*14,x=pathX(z)+8.6;
@@ -246,22 +256,22 @@ function step(dt){
   const steer=steerFromScreen(keys.has('KeyA')||keys.has('ArrowLeft'),keys.has('KeyD')||keys.has('ArrowRight'));
   if(state==='launch'){
     // Stage the opening with two real moving bodies, not an instant 46m teleport.
-    v=THREE.MathUtils.damp(v,23.5,1.35,dt);
-    enemyV=THREE.MathUtils.damp(enemyV,4.0,1.1,dt);
+    v=THREE.MathUtils.damp(v,LAUNCH_SPRINT_SPEED,1.85,dt);
+    enemyV=THREE.MathUtils.damp(enemyV,LAUNCH_CYCLIST_SPEED,1.10,dt);
     z+=v*dt;enemyZ+=enemyV*dt;
     offset=THREE.MathUtils.damp(offset,0,3.4,dt);
     enemyOffset=THREE.MathUtils.damp(enemyOffset,0,1.2,dt);
-    if(z-enemyZ>=INITIAL_GAP){state='play';v=15.8;enemyV=12.8;notice('🚨 追逐开始！');}
+    if(z-enemyZ>=INITIAL_GAP){state='play';enemyV=playerCruiseSpeed(z)-.4;notice('🚨 追逐开始！');}
   }else{
     if(steer!==0){offset=THREE.MathUtils.clamp(offset+steer*dt*(3.5+v*.15),-5,5);laneIndex=LANES.reduce((best,x,i)=>Math.abs(x-offset)<Math.abs(LANES[best]-offset)?i:best,0)}
     else offset=THREE.MathUtils.damp(offset,LANES[laneIndex],10,dt);
     let target=playerCruiseSpeed(z);
-    if(keys.has('Space')||seconds<swipeBrakeUntil)target=4.7;
-    if(seconds<swipeBoostUntil)target=Math.max(target,20);
-    if(Math.abs(offset)>5.1)target=Math.min(target,7.4);
+    if(keys.has('Space')||seconds<swipeBrakeUntil)target=BRAKE_SPEED;
+    if(seconds<swipeBoostUntil)target=Math.max(target,BOOST_SPEED);
+    if(Math.abs(offset)>5.1)target=Math.min(target,ROAD_EDGE_SPEED);
     if(stun>0){stun=Math.max(0,stun-dt);target=1}
     recovery=Math.max(0,recovery-dt);
-    v=THREE.MathUtils.damp(v,target,stun>0?2.1:recovery>0?1.4:.65,dt);
+    v=THREE.MathUtils.damp(v,target,stun>0?2.4:recovery>0?1.8:1.10,dt);
     z+=v*dt;
     for(const o of obstacles){
       if(!o.hit&&Math.abs(z-o.z)<1.35&&Math.abs(offset-o.xoffset)<o.radius+.4){
@@ -290,6 +300,7 @@ function step(dt){
     if(distance<CATCH_DISTANCE)finish(false);else if(z>=TOTAL)finish(true);
   }
   document.querySelector('#speed').textContent=Math.round(v*3.6);
+  speedFx.style.setProperty('--rush',state==='launch'||state==='play'?Math.min(.30,Math.max(0,(v-15)/20)*.3).toFixed(3):'0');
   document.querySelector('#meters').textContent=Math.min(TOTAL,Math.floor(z));
   const gapEl=document.querySelector('#gap');gapEl.textContent=distance<CRITICAL_DISTANCE?`🚨 仅剩 ${Math.ceil(distance)}m`:`追击距离 ${Math.ceil(distance)}m`;
   gapEl.classList.toggle('critical',distance<CRITICAL_DISTANCE);gapEl.classList.toggle('warning',distance<WARNING_DISTANCE);
@@ -297,4 +308,18 @@ function step(dt){
   if(noticeTimer>0){noticeTimer-=dt;if(noticeTimer<=0)document.querySelector('#message').style.opacity=0}
   drawMap();
 }
-function maintainChunks(){const at=Math.floor(z/CHUNK);for(let i=Math.max(0,at-2);i<=Math.min(Math.ceil(TOTAL/CHUNK)+2,at+5);i++){if(!chunks.some(c=>c.i===i))chunks.push(makeChunk(i))}for(let i=chunks.length-1;i>=0;i--)if(Math.abs(chunks[i].i-at)>6){scene.remove(chunks[i].g);chunks[i].g.traverse(n=>{if(n.isMesh && n.geometry!==geoBox && n.geometry!==geoSphere)n.geometry.dispose()});chunks.splice(i,1)}}const targetPos=new THREE.Vector3();function frame(now){requestAnimationFrame(frame);const dt=Math.min(.045,(now-last)/1000);last=now;if(state==='intro')updateIntro(dt);if(state==='play'||state==='launch')step(dt);maintainChunks();const bz=state==='menu'?40:z,bx=pathX(bz)+(state==='menu'?0:offset);const cameraBehind=state==='intro'?19:state==='play'&&distance<WARNING_DISTANCE?24:14;targetPos.set(bx,9.5,bz-cameraBehind);camera.position.lerp(targetPos,Math.min(1,dt*3));camera.lookAt(bx,1.2,bz+(state==='intro'?5:13));renderer.render(scene,camera)}requestAnimationFrame(frame);addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+function maintainChunks(){const at=Math.floor(z/CHUNK);for(let i=Math.max(0,at-2);i<=Math.min(Math.ceil(TOTAL/CHUNK)+2,at+5);i++){if(!chunks.some(c=>c.i===i))chunks.push(makeChunk(i))}for(let i=chunks.length-1;i>=0;i--)if(Math.abs(chunks[i].i-at)>6){scene.remove(chunks[i].g);chunks[i].g.traverse(n=>{if(n.isMesh && n.geometry!==geoBox && n.geometry!==geoSphere)n.geometry.dispose()});chunks.splice(i,1)}}const targetPos=new THREE.Vector3();function frame(now){requestAnimationFrame(frame);const dt=Math.min(.045,(now-last)/1000);last=now;if(state==='intro')updateIntro(dt);if(state==='play'||state==='launch')step(dt);maintainChunks();const bz=state==='menu'?40:z,bx=pathX(bz)+(state==='menu'?0:offset);// Arcade chase camera: low and close, dynamically widens FOV as world speed rises.
+  // Suppress camera vibration on menu/intro and when nearly stopped to avoid motion sickness.
+  const isChasing=state==='play'||state==='launch';
+  const speedBlend=isChasing?THREE.MathUtils.smoothstep(v,10,33):0;
+  const danger=state==='play'&&distance<WARNING_DISTANCE;
+  const cameraBehind=state==='intro'?17:danger?17:9.6;
+  const cameraHeight=state==='intro'?7.8:danger?6.7:5.5;
+  const vibration=isChasing?Math.max(0,speedBlend-.22)*.045:0;
+  targetPos.set(bx+Math.sin(now*.024)*vibration,cameraHeight+Math.cos(now*.018)*vibration,bz-cameraBehind);
+  camera.position.lerp(targetPos,Math.min(1,dt*(isChasing?5.8:3)));
+  const fovTarget=isChasing?72+speedBlend*10:68;
+  const updatedFov=THREE.MathUtils.damp(camera.fov,fovTarget,3.5,dt);
+  if(Math.abs(updatedFov-camera.fov)>.012){camera.fov=updatedFov;camera.updateProjectionMatrix();}
+  camera.lookAt(bx,1.12,bz+(state==='intro'?6:17));
+  renderer.render(scene,camera)}requestAnimationFrame(frame);addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
