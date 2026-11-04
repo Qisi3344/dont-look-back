@@ -169,15 +169,20 @@ function applyStreamerSkin(id){
     rider.root.visible=false;
     return;
   }
-  // Static, unrigged model: rotate the entire body to a face-up skating pose.
-  // Local face (+Z) -> world sky (+Y), head points toward trailing camera (-Z).
+  // Static, unrigged cow: one hand has been physically posed in the GLB vertex geometry.
+  // The face still points toward the sky; the complete cow turns 180 degrees horizontally.
   import('./bull-model.js').then(({loadBullInstance})=>loadBullInstance()).then(bull=>{
     if(token!==bullSelectionGeneration)return;
+    // Lie face-up, then turn the entire cow 180 degrees in the skateboard plane.
+    // This leaves the camera-facing (+Y) face skyward and reverses head/feet.
+    const cowHeading=new THREE.Group();
+    cowHeading.rotation.y=Math.PI;
     bull.scale.setScalar(2.95);
     bull.rotation.x=-Math.PI/2;
     bull.position.set(0,1.10,1.47);
-    player.add(bull);
-    gameplayBull=bull;
+    cowHeading.add(bull);
+    player.add(cowHeading);
+    gameplayBull=cowHeading;
     rider.root.visible=false;
   }).catch(error=>{
     if(token===bullSelectionGeneration)rider.root.visible=true;
