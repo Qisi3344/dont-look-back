@@ -8,7 +8,8 @@ export const STREAMER_SKINS = [
   {id:'purple',name:'紫衣主播',detail:'默认 · 直播老熟人',color:'#9478dc', shirt:0x8665b1, shirtHi:0xb7a4e3, pants:0x273044, hair:0x27272d, skin:0xe6bc9b, accessory:'none'},
   {id:'mocha',name:'摩卡街头',detail:'奶咖帽衫',color:'#c5a68b', shirt:0xb79b83, shirtHi:0xe4c3a1, pants:0x4a3d46, hair:0x27272d, skin:0xe8bc9c, accessory:'none'},
   {id:'cow',name:'牛角团子',detail:'原创牛角装',color:'#f4efe4', shirt:0xf0eadf, shirtHi:0x2b2e38, pants:0x34313b, hair:0x28252a, skin:0xecd3b0, accessory:'horns'},
-  {id:'dragon',name:'奶油小龙',detail:'原创龙角装',color:'#ffd966', shirt:0xffd45e, shirtHi:0xffedb2, pants:0xe8ab4b, hair:0x936f46, skin:0xffdbab, accessory:'dragon'}
+  {id:'dragon',name:'奶油小龙',detail:'原创龙角装',color:'#ffd966', shirt:0xffd45e, shirtHi:0xffedb2, pants:0xe8ab4b, hair:0x936f46, skin:0xffdbab, accessory:'dragon'},
+  {id:'niulai',name:'牛来 · 立体牛牛',detail:'真实 GLB · 已修眉 · 手机版优化',color:'#ffd343',shirt:0xf5ca48,shirtHi:0xffdd69,pants:0xf1c840,hair:0xaa835a,skin:0xe4b881,accessory:'none',model:'niulai'}
 ];
 export const CYCLIST_SKINS = [
   {id:'neon',name:'荧光绿',detail:'默认 · 夺命显眼包',color:'#c7ff24', shirt:0xc0ff27, pants:0x242c2e, bike:0x27323b},

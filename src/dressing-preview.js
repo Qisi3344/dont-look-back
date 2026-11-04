@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-// Independent dressing-room viewer. All geometry is generated in code; no image/model assets.
+// Independent dressing-room viewer. Niu Lai uses an optimized user-supplied GLB.
 const cubeGeometry = new THREE.BoxGeometry(1, 1, 1);
 const torusGeometry = new THREE.TorusGeometry(0.45, 0.075, 8, 24);
 const cylinderGeometry = new THREE.CylinderGeometry(1, 1, 1, 12);
@@ -139,15 +139,33 @@ export function createDressingPreview(stage, { role, skin }) {
   scene.add(grid);
   let model = new THREE.Group();scene.add(model);
   let angle = -0.23, pointer = null, dragAt = 0;
+  let disposed=false, selectionGeneration=0;
+  function disposeModelMaterials(target){
+    target.traverse(o=>{
+      if(!o.material||o.userData.dlbSharedAsset)return;
+      if(Array.isArray(o.material))o.material.forEach(m=>m.dispose());
+      else o.material.dispose();
+    });
+  }
   function setCharacter(nextRole, nextSkin) {
+    const selection=++selectionGeneration;
     scene.remove(model);
-    // Dispose unique materials; shared primitive geometries are held until viewer teardown.
-    model.traverse(o => { if (o.material) { if (Array.isArray(o.material)) o.material.forEach(m => m.dispose()); else o.material.dispose(); } });
+    disposeModelMaterials(model);
     model = new THREE.Group();
     const character = new THREE.Group();
     character.position.set(nextRole === 'cyclist' ? -0.53 : 0, 0, 0);
     model.add(character);
     buildBody(character, nextRole, nextSkin);
+    if(nextRole==='streamer'&&nextSkin.model==='niulai'){
+      import('./bull-model.js').then(({loadBullInstance})=>loadBullInstance()).then(bull=>{
+        if(disposed||selection!==selectionGeneration)return;
+        disposeModelMaterials(character);
+        character.clear();
+        bull.scale.setScalar(3.30);
+        bull.position.set(0,.25,0);
+        character.add(bull);
+      }).catch(error=>console.warn('Niu Lai dressing preview failed',error));
+    }
     if (nextRole === 'streamer') buildSkateboard(model);
     else buildBike(model, nextSkin);
     scene.add(model);
@@ -175,7 +193,7 @@ export function createDressingPreview(stage, { role, skin }) {
   stage.addEventListener('pointermove', pointerMove);
   stage.addEventListener('pointerup', pointerUp);
   stage.addEventListener('pointercancel', pointerUp);
-  let disposed = false, frame = 0, last = performance.now();
+  let frame = 0, last = performance.now();
   function animate(time) {
     if (disposed) return;
     const dt = Math.min(.04, Math.max(0, (time - last) / 1000)); last = time;
@@ -191,6 +209,7 @@ export function createDressingPreview(stage, { role, skin }) {
     dispose() {
       if (disposed) return;
       disposed = true;
+      selectionGeneration++;
       cancelAnimationFrame(frame);
       if (ro) ro.disconnect();
       window.removeEventListener('resize', resize);
@@ -198,7 +217,7 @@ export function createDressingPreview(stage, { role, skin }) {
       stage.removeEventListener('pointermove', pointerMove);
       stage.removeEventListener('pointerup', pointerUp);
       stage.removeEventListener('pointercancel', pointerUp);
-      model.traverse(o => { if (o.material) { if (Array.isArray(o.material)) o.material.forEach(m => m.dispose()); else o.material.dispose(); } });
+      disposeModelMaterials(model);
       scene.remove(model);
       ground.material.dispose(); ring.material.dispose(); grid.material.dispose();
       renderer.dispose(); renderer.domElement.remove();

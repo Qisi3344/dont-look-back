@@ -151,11 +151,38 @@ function createStreamingPhone(parent){
 }
 const player=new THREE.Group();scene.add(player);const deck=box(player,1.45,.16,3.45,mat(0x252a30),0,.32,0);box(player,1.32,.035,3.2,mat(0x8264b4),0,.42,0);for(const x of [-.69,.69])for(const z of [-1.17,1.17]){const wheel=new THREE.Mesh(new THREE.CylinderGeometry(.24,.24,.15,12),mat(0x13161b));wheel.rotation.z=Math.PI/2;wheel.position.set(x,.22,z);wheel.castShadow=true;player.add(wheel)}const rider=createStreamer(player);rider.root.rotation.y=STREAMER_BOARD_YAW;rider.root.position.z=STREAMER_BOARD_CENTER_OFFSET_Z;const streamerPhone=createStreamingPhone(player);
 const chaser=new THREE.Group();scene.add(chaser);const bike=new THREE.Group();chaser.add(bike);const tire=mat(0x171819),metal=mat(0xb8c3c3),red=mat(0x27323b),cyclistShirt=mat(0xc0ff27),cyclistPants=mat(0x242c2e);for(const z of [-1.05,1.05]){const w=new THREE.Mesh(new THREE.TorusGeometry(.69,.095,7,16),tire);w.rotation.y=Math.PI/2;w.position.set(0,.82,z);bike.add(w)}const bikeFrame=[[0,.95,-1.05,0,1.45,0],[0,1.45,0,0,.95,1.05],[0,.95,-1.05,0,.95,1.05],[0,1.45,0,0,.95,1.05]];function rod(parent,a,b,r,material){const v1=new THREE.Vector3(...a),v2=new THREE.Vector3(...b),m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,v1.distanceTo(v2),8),material);m.position.copy(v1).add(v2).multiplyScalar(.5);m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),v2.sub(v1).normalize());parent.add(m)}bikeFrame.forEach(([x,y,z,X,Y,Z])=>rod(bike,[x,y,z],[X,Y,Z],.072,red));rod(bike,[0,1.4,-1],[0,1.9,-1.05],.065,metal);rod(bike,[-.55,1.9,-1.05],[.55,1.9,-1.05],.065,metal);box(bike,.45,.08,.58,tire,0,1.6,.13);box(bike,.82,.96,.55,cyclistShirt,0,2.48,.3);box(bike,.65,.65,.62,mat(0xd0aa83),0,3.27,-.22);box(bike,.7,.15,.65,mat(0x34312d),0,3.64,-.25);for(const x of [-.16,.16])box(bike,.12,.075,.03,mat(0x1a1c20),x,3.32,-.548);box(bike,.22,.06,.035,mat(0x6b3938),0,3.16,-.55);for(const x of [-.42,.42]){rod(bike,[x,2.65,.12],[x*.8,1.7,-.65],.14,mat(0xd0aa83));rod(bike,[x*.55,1.9,.58],[x*.55,1.13,.26],.18,cyclistPants)}
+// The real GLB is loaded lazily when the Niu Lai skin is equipped.
+let gameplayBull=null, bullSelectionGeneration=0;
 function applyStreamerSkin(id){
+  const token=++bullSelectionGeneration;
   const skin=findSkin(STREAMER_SKINS,id),m=rider.materials;
   m.shirt.color.setHex(skin.shirt);m.shirtHi.color.setHex(skin.shirtHi);
   m.pants.color.setHex(skin.pants);m.hair.color.setHex(skin.hair);m.skin.color.setHex(skin.skin);
   rider.cowHorns.visible=skin.accessory==='horns';rider.dragonHorns.visible=skin.accessory==='dragon';
+  if(skin.model!=='niulai'){
+    rider.root.visible=true;
+    if(gameplayBull)gameplayBull.visible=false;
+    return;
+  }
+  if(gameplayBull){
+    gameplayBull.visible=true;
+    rider.root.visible=false;
+    return;
+  }
+  // Static, unrigged model: rotate the entire body to a face-up skating pose.
+  // Local face (+Z) -> world sky (+Y), head points toward trailing camera (-Z).
+  import('./bull-model.js').then(({loadBullInstance})=>loadBullInstance()).then(bull=>{
+    if(token!==bullSelectionGeneration)return;
+    bull.scale.setScalar(2.95);
+    bull.rotation.x=-Math.PI/2;
+    bull.position.set(0,1.10,1.47);
+    player.add(bull);
+    gameplayBull=bull;
+    rider.root.visible=false;
+  }).catch(error=>{
+    if(token===bullSelectionGeneration)rider.root.visible=true;
+    console.warn('Niu Lai GLB failed to load; fallback active',error);
+  });
 }
 function applyCyclistSkin(id){
   const skin=findSkin(CYCLIST_SKINS,id);
