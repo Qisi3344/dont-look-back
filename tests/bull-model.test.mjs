@@ -36,6 +36,7 @@ test('the in-game cow turns 180 degrees without rolling face-down',()=>{
   const yaw180=v=>[-v[0],v[1],-v[2]];
   const normal=yaw180(rotateX(face));
   const spine=yaw180(rotateX(up));
-  assert.deepEqual(normal,[0,1,0]);
-  assert.deepEqual(spine,[0,0,1]);
+  // Rotations can produce negative zero; compare vectors geometrically.
+  assert.ok(normal.every((value,i)=>Math.abs(value-[0,1,0][i])<1e-10));
+  assert.ok(spine.every((value,i)=>Math.abs(value-[0,0,1][i])<1e-10));
 });
